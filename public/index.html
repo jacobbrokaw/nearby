@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Nearby</title>
+	<script defer src="/__/firebase/7.14.2/firebase-app.js"></script>
+	<script defer src="/__/firebase/7.14.2/firebase-firestore.js"></script>
+	<script defer src="/__/firebase/init.js"></script>
+
+	<style media="screen">
+		body {
+			background: #ECEFF1;
+			color: rgba(0, 0, 0, 0.87);
+			font-family: Roboto, Helvetica, Arial, sans-serif;
+			margin: 0;
+			padding: 0;
+		}
+
+		#message {
+			background: white;
+			max-width: 360px;
+			margin: 100px auto 16px;
+			padding: 32px 24px;
+			border-radius: 3px;
+		}
+
+		#message h2 {
+			color: #ffa100;
+			font-weight: bold;
+			font-size: 16px;
+			margin: 0 0 8px;
+		}
+
+		#message h1 {
+			font-size: 22px;
+			font-weight: 300;
+			color: rgba(0, 0, 0, 0.6);
+			margin: 0 0 16px;
+		}
+
+		#message p {
+			line-height: 140%;
+			margin: 16px 0 24px;
+			font-size: 14px;
+		}
+
+		#message a {
+			display: block;
+			text-align: center;
+			background: #039be5;
+			text-transform: uppercase;
+			text-decoration: none;
+			color: white;
+			padding: 16px;
+			border-radius: 4px;
+		}
+
+		#message,
+		#message a {
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+		}
+
+		#load {
+			color: rgba(0, 0, 0, 0.4);
+			text-align: center;
+			font-size: 13px;
+		}
+
+		@media (max-width: 600px) {
+
+			body,
+			#message {
+				margin-top: 0;
+				background: white;
+				box-shadow: none;
+			}
+
+			body {
+				border-top: 16px solid #ffa100;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div id="message">
+		<h2>Welcome</h2>
+		<h1>Firebase Hosting Setup Complete</h1>
+		<p id="results">You're seeing this because you've successfully setup
+			Firebase
+			Hosting.
+			Now it's time to go build something extraordinary!</p>
+		<a target="_blank" href="https://firebase.google.com/docs/hosting/">Open
+			Hosting Documentation</a>
+	</div>
+	<p id="load">Firebase SDK Loading&hellip;</p>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const db = firebase.firestore();
+
+			if (typeof (Storage) !== 'undefined') app();
+			else results.textContent = 'Sorry. Your device doesn\'t support the necessary APIs.';
+
+			async function app() {
+				if (!localStorage.deviceId) localStorage.deviceId = generateUUID();
+
+				var lat, long;
+				if (navigator.geolocation) {
+					await navigator.geolocation.getCurrentPosition(async position => {
+						lat = position.coords.latitude;
+						long = position.coords.longitude;
+						let deviceLocation = await db.collection('devices').doc(localStorage.deviceId).set({
+							lat,
+							long
+						});
+						console.log(deviceLocation);
+						
+						listen(lat, long);
+					});
+
+				} else {
+					results.textContent = 'Your device does not support geolocation';
+				}
+			}
+
+			async function listen(lat, long) {
+				console.log('listening',lat,long);
+				db.collection('devices').onSnapshot(querySnapshot => {
+					nearbyDevices = [];
+
+					querySnapshot.forEach(doc => {
+						if (doc.id != localStorage.deviceId) {
+							let otherDevice = doc.data();
+							if (getDistance(lat, long, otherDevice.lat, otherDevice.long) <= 50) {
+								nearbyDevices.push(doc.id);
+							}
+						}
+					});
+
+					results.innerHTML = `Devices within 50km:<br>${nearbyDevices.join('<br>')}`;
+				});
+			}
+
+			function generateUUID() {
+				var dt = new Date().getTime();
+				var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+					var r = (dt + Math.random() * 16) % 16 | 0;
+					dt = Math.floor(dt / 16);
+					return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+				});
+				return uuid;
+			}
+
+			function getDistance(lat1, long1, lat2, long2) {
+				var R = 6371; // Radius of the earth in km
+				var dLat = deg2rad(lat2 - lat1);  // deg2rad below
+				var dLong = deg2rad(long2 - long1);
+				var a =
+					Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+					Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+					Math.sin(dLong / 2) * Math.sin(dLong / 2)
+					;
+				var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+				var d = R * c; // Distance in km
+				return d;
+			}
+
+			function deg2rad(deg) {
+				return deg * (Math.PI / 180)
+			}
+		});
+
+	</script>
+</body>
+
+</html>
